@@ -5,6 +5,9 @@ echo:
 build-dir:
 	mkdir -p .build
 
+build-go: build-dir
+	CGO_ENABLED=0 go build -o .build/devcli github.com/jlewi/monogo/cli
+
 tidy-go:
 	gofmt -s -w .
 	goimports -w .
