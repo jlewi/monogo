@@ -23,13 +23,13 @@ func Test_iap(t *testing.T) {
 				Kind: "IAPAppPolicy",
 				Spec: Policy{
 					ResourceRef: ResourceRef{
-						External: "projects/dev-starling/iap_web/compute/services/k8s1-9202d8d9-healthapp-server-8080-f62d8d54",
+						External: "projects/dev-foo/iap_web/compute/services/k8s1-9202d8d9-healthapp-server-8080-f62d8d54",
 					},
 					Bindings: []Binding{
 						{
 							Role: "roles/iap.httpsResourceAccessor",
 							Members: []string{
-								"group:gcp-developers@starlingai.com",
+								"group:gcp-developers@fooai.com",
 							},
 						},
 					},
@@ -43,7 +43,7 @@ func Test_iap(t *testing.T) {
 				Spec: Policy{
 					ResourceRef: ResourceRef{
 						ServiceRef: &ServiceRef{
-							Project:   "dev-starling",
+							Project:   "dev-foo",
 							Service:   "argocd-server",
 							Ingress:   "argocd",
 							Namespace: "argocd",
@@ -53,7 +53,7 @@ func Test_iap(t *testing.T) {
 						{
 							Role: "roles/iap.httpsResourceAccessor",
 							Members: []string{
-								"group:gcp-developers@starlingai.com",
+								"group:gcp-developers@fooai.com",
 							},
 						},
 					},

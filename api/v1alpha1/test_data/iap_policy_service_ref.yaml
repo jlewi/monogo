@@ -1,0 +1,13 @@
+kind: IAPAppPolicy
+spec:
+  resourceRef:
+    serviceRef:
+      project: dev-foo
+      service: argocd-server
+      ingress: argocd
+      namespace: argocd
+
+  bindings:
+    - role: roles/iap.httpsResourceAccessor
+      members:
+        - group:gcp-developers@fooai.com

@@ -1,4 +1,5 @@
-//package oauthutil
+package oauthutil
+
 //
 //import (
 //	"fmt"

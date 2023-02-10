@@ -2,10 +2,11 @@ package commands
 
 import (
 	"context"
-	firebase "firebase.google.com/go/v4"
 	"fmt"
-	"google.golang.org/api/option"
 	"os"
+
+	firebase "firebase.google.com/go/v4"
+	"google.golang.org/api/option"
 
 	"github.com/MicahParks/keyfunc"
 	"github.com/go-logr/zapr"
@@ -168,8 +169,9 @@ func NewParseFirebaseJWTCommand() *cobra.Command {
 		Use:   "parse [JWT]",
 		Args:  cobra.ExactArgs(1),
 		Short: "Parse validates the signature on a JWT encoded as a base64 string and pretty prints it.",
-		Long: `Parse and validates a firebase JWT. 
-Firebase JWTs can be created using the firebase create command,
+		Long: `Parse and validates a firebase IDToken.
+
+Firebase IDTokens are not the same as firebase custom tokens.
 
 This command is useful for inspecting the JWT to see claims and other information.
 `,
@@ -177,8 +179,28 @@ This command is useful for inspecting the JWT to see claims and other informatio
 			log := zapr.NewLogger(zap.L())
 			err := func() error {
 				log.Info("Parsing JWT")
-				//jot := args[0]
+				jot := args[0]
+				config := &firebase.Config{
+					ProjectID: project,
+				}
+				app, err := firebase.NewApp(context.Background(), config)
 
+				if err != nil {
+					return errors.Wrapf(err, "error initializing app")
+				}
+
+				ctx := context.Background()
+				client, err := app.Auth(ctx)
+				if err != nil {
+					return errors.Wrapf(err, "error getting Auth client")
+				}
+				token, err := client.VerifyIDToken(ctx, jot)
+
+				if err != nil {
+					return errors.Wrapf(err, "error validating token")
+				}
+
+				fmt.Fprintf(os.Stdout, "Token:\n%v\n", helpers.PrettyString(token))
 				return nil
 			}()
 			if err != nil {
