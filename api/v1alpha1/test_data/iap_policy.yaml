@@ -1,0 +1,15 @@
+# These are the permissions for who can access IAP
+# See: https://cloud.google.com/iap/docs/managing-access#resources_and_permissions
+#
+# These are not currently a K8s resource.
+# They can be applied with the CLI
+kind: IAPAppPolicy
+spec:
+  # TODO(jeremy): we should support specifying the ingress resource and then getting the backend name from
+  # the ingress
+  resourceRef:
+    external: "projects/dev-foo/iap_web/compute/services/k8s1-9202d8d9-healthapp-server-8080-f62d8d54"
+  bindings:
+    - role: roles/iap.httpsResourceAccessor
+      members:
+        - group:gcp-developers@fooai.com
