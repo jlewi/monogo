@@ -100,7 +100,7 @@ func NewGetIAMPolicy() *cobra.Command {
 	}
 
 	k8sFlags.AddFlags(cmd)
-	cmd.Flags().StringVarP(&project, "project", "", "dev-starling", "The project ID or number that owns the backend resource")
+	cmd.Flags().StringVarP(&project, "project", "", "", "The project ID or number that owns the backend resource")
 	cmd.Flags().StringVarP(&service, "service", "", "", "The K8s service to get the IAP policy for.")
 	cmd.Flags().StringVarP(&namespace, "namespace", "", "", "The K8s namespace containing the ingress and service.")
 	cmd.Flags().StringVarP(&ingress, "ingress", "", "", "The K8s ingress to get the policy for.")

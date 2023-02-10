@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	sessionCookie = "starling-oidc-proxy-sid"
+	sessionCookie = "oidc-proxy-sid"
 	oauthStart    = "/oidc/start"
 	idTokenPath   = "/oidc/token"
 	healthPath    = "/healthz"
