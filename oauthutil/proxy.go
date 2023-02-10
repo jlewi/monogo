@@ -21,8 +21,8 @@ import (
 	"github.com/jlewi/p22h/backend/pkg/debug"
 	"github.com/jlewi/p22h/backend/pkg/logging"
 	"github.com/pkg/errors"
-	"github.com/starlingai/flock/go/pkg/helpers"
-	"github.com/starlingai/flock/go/pkg/iap"
+	"github.com/jlewi/monogo/helpers"
+	"github.com/jlewi/monogo/iap"
 	"go.uber.org/zap"
 )
 
