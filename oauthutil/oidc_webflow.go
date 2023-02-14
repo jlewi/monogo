@@ -4,6 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
+	"os"
+	"path"
+	"time"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
@@ -17,11 +23,6 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	"net/http"
-	"net/url"
-	"os"
-	"path"
-	"time"
 )
 
 const (
@@ -36,7 +37,10 @@ const (
 //
 // N.B: https://github.com/coreos/go-oidc/issues/354 is discussing creating a reusable server.
 //
-// Your OAuth2 credential should have http://127.0.0.1/auth/callback as an allowed redirect URL.
+// Your OAuth2 credential should have http://127.0.0.1/auth/callback as an allowed redirect URL. The port
+// doesn't matter.
+//
+// Refer to oidc_webflow_int_test.go for an example of how to use this.
 // TODO(jeremy): Add caching of the refresh token.
 type OIDCWebFlowServer struct {
 	log      logr.Logger
@@ -156,10 +160,13 @@ func (s *OIDCWebFlowServer) Run() (oauth2.TokenSource, error) {
 			return nil, errors.Wrapf(tsOrError.err, "OIDC flow didn't complete successfully")
 		}
 		log.Info("OIDC flow completed")
+		// TODO(jeremy): This is a hack to deal with a race condition in which the server starts shutting down
+		// but oauth flow still sends it some request.
 		return tsOrError.ts, nil
 	case <-time.After(3 * time.Minute):
 		return nil, errors.New("Timeout waiting for OIDC flow to complete")
 	}
+
 }
 
 // startAndBlock starts the server and blocks.
@@ -236,7 +243,7 @@ func (f *OIDCWebFlowFlags) AddFlags(cmd *cobra.Command) {
 		dirname = "/"
 	}
 	// TODO(jeremy): What's a more sensible default?
-	defaultOAuthClientFile := path.Join(dirname, "secrets", "roboweb-lewi-iap-oauth-client.json ")
+	defaultOAuthClientFile := path.Join(dirname, "secrets", "roboweb-lewi-iap-oauth-client.json")
 	cmd.Flags().StringVarP(&f.Issuer, "oidc-issuer", "", "https://accounts.google.com", "The OIDC issuer to use when using OIDC")
 	cmd.Flags().StringVarP(&f.OAuthClientFile, "oidc-client-file", "", defaultOAuthClientFile, "The file containing the OAuth client to use with OIDC")
 }
