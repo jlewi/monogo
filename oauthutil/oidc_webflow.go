@@ -1,17 +1,32 @@
 package oauthutil
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
 	"github.com/gorilla/mux"
+	"github.com/jlewi/monogo/networking"
 	"github.com/jlewi/p22h/backend/api"
 	"github.com/jlewi/p22h/backend/pkg/debug"
+	"github.com/pkg/browser"
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"net/http"
 	"net/url"
+	"os"
+	"path"
 	"time"
+)
+
+const (
+	authStartPrefix = "/auth/start"
+	authCallbackUrl = "/auth/callback"
 )
 
 // OIDCWebFlowServer creates a server to be used to go through the web flow to get a token source
@@ -21,6 +36,7 @@ import (
 //
 // N.B: https://github.com/coreos/go-oidc/issues/354 is discussing creating a reusable server.
 //
+// Your OAuth2 credential should have http://127.0.0.1/auth/callback as an allowed redirect URL.
 // TODO(jeremy): Add caching of the refresh token.
 type OIDCWebFlowServer struct {
 	log      logr.Logger
@@ -29,6 +45,7 @@ type OIDCWebFlowServer struct {
 	host     string
 	c        chan tokenSourceOrError
 	srv      *http.Server
+	handlers *OIDCHandlers
 }
 
 func NewOIDCWebFlowServer(config oauth2.Config, verifier *oidc.IDTokenVerifier, log logr.Logger) (*OIDCWebFlowServer, error) {
@@ -37,12 +54,18 @@ func NewOIDCWebFlowServer(config oauth2.Config, verifier *oidc.IDTokenVerifier, 
 		return nil, errors.Wrapf(err, "Could not parse URL %v", config.RedirectURL)
 	}
 
+	handlers, err := NewOIDCHandlers(config, verifier)
+	if err != nil {
+		return nil, err
+	}
+
 	return &OIDCWebFlowServer{
 		log:      log,
 		config:   config,
 		verifier: verifier,
 		host:     u.Host,
 		c:        make(chan tokenSourceOrError, 10),
+		handlers: handlers,
 	}, nil
 }
 
@@ -99,6 +122,8 @@ func (s *OIDCWebFlowServer) waitForReady() error {
 }
 
 // Run runs the flow to create a tokensource.
+// The server is shutdown after the flow is complete. Since the flow should return a refresh token
+// it shouldn't be necessary to keep it running.
 func (s *OIDCWebFlowServer) Run() (oauth2.TokenSource, error) {
 	log := s.log
 
@@ -161,23 +186,99 @@ func (s *OIDCWebFlowServer) startAndBlock() {
 	log.Info("OIDC server has been shutdown")
 }
 
-func (p *Proxy) addRoutes() error {
-	router := mux.NewRouter().StrictSlash(true)
-	p.router = router
-
-	router.HandleFunc(healthPath, p.healthCheck)
-
-	p.log.Info("Adding OIDC login handlers")
-	router.HandleFunc(oauthStart, p.handleOAuthStart)
-	u, err := url.Parse(p.handlers.Config().RedirectURL)
+// handleStartWebFlow kicks off the OIDC web flow.
+// It was copied from: https://github.com/coreos/go-oidc/blob/2cafe189143f4a454e8b4087ef892be64b1c77df/example/idtoken/app.go#L65
+// It sets some cookies before redirecting to the OIDC provider's URL for obtaining an authorization code.
+func (s *OIDCWebFlowServer) handleStartWebFlow(w http.ResponseWriter, r *http.Request) {
+	// N.B. we currently ignore the cookie and state because we run thisflow in a CLI/application. The implicit
+	// assumption is that a single user is going through the flow a single time so we don't need to use
+	// cookie and state to keep track of the user's session. We also don't need to use the cookie
+	// to keep track of the page the user was visiting before they started the flow.
+	_, err := s.handlers.RedirectToAuthURL(w, r)
 	if err != nil {
-		return errors.Wrapf(err, "Could not parse URL %v", p.handlers.Config().RedirectURL)
+		s.log.Error(err, "Failed to handle auth start")
 	}
-	router.HandleFunc(u.Path, p.handleOAuthCallback)
-	router.HandleFunc(idTokenPath, p.oidcEnsureAuth(p.handleToken))
+}
 
-	router.NotFoundHandler = p.oidcEnsureAuth(p.proxyRequest)
+// handleAuthCallback handles the OIDC auth callback code copied from
+// https://github.com/coreos/go-oidc/blob/2cafe189143f4a454e8b4087ef892be64b1c77df/example/idtoken/app.go#L82.
+//
+// The Auth callback is invoked in step 21 of the OIDC protocol.
+// https://solid.github.io/solid-oidc/primer/#:~:text=Solid%2DOIDC%20builds%20on%20top,authentication%20in%20the%20Solid%20ecosystem.
+// The OpenID server responds with a 303 redirect to the AuthCallback URL and passes the authorization code.
+// This is a mechanism for the authorization code to be passed into the code.
+func (s *OIDCWebFlowServer) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
+	_, ts, err := s.handlers.HandleAuthCode(w, r)
+	if err != nil {
+		s.log.Error(err, "Failed to handle auth callback")
+		s.c <- tokenSourceOrError{err: err}
+		return
+	}
 
-	// TODO(jeremy): Can we verify that interceptors for Auth are on each page.
-	return nil
+	s.c <- tokenSourceOrError{ts: ts}
+}
+
+type tokenSourceOrError struct {
+	ts  oauth2.TokenSource
+	err error
+}
+
+// OIDCWebFlowFlags creates the OIDCWebFlowServer from command line flags.
+type OIDCWebFlowFlags struct {
+	Issuer          string
+	OAuthClientFile string
+}
+
+func (f *OIDCWebFlowFlags) AddFlags(cmd *cobra.Command) {
+	dirname, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Printf("failed to get home directory. This only affects default values for command line flags. Error; %v", err)
+		dirname = "/"
+	}
+	// TODO(jeremy): What's a more sensible default?
+	defaultOAuthClientFile := path.Join(dirname, "secrets", "roboweb-lewi-iap-oauth-client.json ")
+	cmd.Flags().StringVarP(&f.Issuer, "oidc-issuer", "", "https://accounts.google.com", "The OIDC issuer to use when using OIDC")
+	cmd.Flags().StringVarP(&f.OAuthClientFile, "oidc-client-file", "", defaultOAuthClientFile, "The file containing the OAuth client to use with OIDC")
+}
+
+func (f *OIDCWebFlowFlags) Flow() (*OIDCWebFlowServer, error) {
+	log := zapr.NewLogger(zap.L())
+
+	b, err := os.ReadFile(f.OAuthClientFile)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// If modifying these scopes, delete your previously saved token.json.
+	scopes := []string{oidc.ScopeOpenID, "profile", "email"}
+	// "openid" is a required scope for OpenID Connect flows.
+	config, err := google.ConfigFromJSON(b, scopes...)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Unable to parse client secret file to config")
+	}
+
+	// TODO(jeremy): make this a parameter. 0 picks a free port.
+	port, err := networking.GetFreePort()
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to get free port")
+	}
+	// We need to rewrite the RedirectURL in the config because the webflowserver gets the value
+	// from the callback URL
+	config.RedirectURL = fmt.Sprintf("http://127.0.0.1:%v%v", port, authCallbackUrl)
+
+	p, err := oidc.NewProvider(context.Background(), f.Issuer)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to create OIDC provider for %v", f.Issuer)
+	}
+
+	// Configure an OpenID Connect aware OAuth2 client.
+	config.Endpoint = p.Endpoint()
+
+	oidcConfig := &oidc.Config{
+		ClientID: config.ClientID,
+	}
+	verifier := p.Verifier(oidcConfig)
+
+	return NewOIDCWebFlowServer(*config, verifier, log)
 }
