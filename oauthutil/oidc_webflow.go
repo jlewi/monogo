@@ -128,7 +128,7 @@ func (s *OIDCWebFlowServer) waitForReady() error {
 // Run runs the flow to create a tokensource.
 // The server is shutdown after the flow is complete. Since the flow should return a refresh token
 // it shouldn't be necessary to keep it running.
-func (s *OIDCWebFlowServer) Run() (oauth2.TokenSource, error) {
+func (s *OIDCWebFlowServer) Run() (*IDTokenSource, error) {
 	log := s.log
 
 	go func() {
@@ -226,7 +226,7 @@ func (s *OIDCWebFlowServer) handleAuthCallback(w http.ResponseWriter, r *http.Re
 }
 
 type tokenSourceOrError struct {
-	ts  oauth2.TokenSource
+	ts  *IDTokenSource
 	err error
 }
 
