@@ -1,0 +1,36 @@
+<html>
+<head>
+<script src="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.js"></script>
+<link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.css" />
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  // This needs to be updated for each application
+  const firebaseConfig = {
+    apiKey: "AIzaSyDGpWIgfbQ756LcyQylCWIN7DwdfYFIotY",
+    authDomain: "roboweb-56423.firebaseapp.com",
+    projectId: "roboweb-56423",
+    storageBucket: "roboweb-56423.appspot.com",
+    messagingSenderId: "1052349428368",
+    appId: "1:1052349428368:web:870453aea1a464c8cbde15"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+</script>
+<script>
+var firebase = window.firebase;
+var firebaseui = window.firebase-ui;
+var ui = new firebaseui.auth.AuthUI(firebase.auth());
+</script>
+</head>
+<!-- The surrounding HTML is left untouched by FirebaseUI.
+     Your app may use that space for branding, controls and other customizations.-->
+<h1>Welcome to My Awesome App</h1>
+<div id="firebaseui-auth-container"></div>
+<div id="loader">Loading...</div>
+</html>
