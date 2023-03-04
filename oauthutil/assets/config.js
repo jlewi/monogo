@@ -25,5 +25,6 @@ firebase.initializeApp(config);
 
 // Google OAuth Client ID, needed to support One-tap sign-up.
 // Set to null if One-tap sign-up is not supported.
-var CLIENT_ID =
-    'YOUR_OAUTH_CLIENT_ID';
+// https://developers.google.com/identity/one-tap/web/get-started
+// TODO(jeremy): Login with Google to work even when this is null.
+var CLIENT_ID = null;
