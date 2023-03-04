@@ -13,10 +13,12 @@
  */
 
 var config = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "your-app.firebaseapp.com",
-  databaseURL: "https://your-app.firebaseio.com",
-  storageBucket: "your-app.appspot.com",
+  apiKey: "AIzaSyDGpWIgfbQ756LcyQylCWIN7DwdfYFIotY",
+  authDomain: "roboweb-56423.firebaseapp.com",
+  projectId: "roboweb-56423",
+  storageBucket: "roboweb-56423.appspot.com",
+  messagingSenderId: "1052349428368",
+  appId: "1:1052349428368:web:870453aea1a464c8cbde15"
 };
 firebase.initializeApp(config);
 
