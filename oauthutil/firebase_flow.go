@@ -2,24 +2,29 @@ package oauthutil
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
 	"github.com/gorilla/mux"
 	"github.com/jlewi/p22h/backend/api"
 	"github.com/jlewi/p22h/backend/pkg/debug"
 	"github.com/pkg/browser"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"net/http"
-	"net/url"
 	"time"
 )
 
+// embed the assets
+//
+//go:embed assets
+var assetFiles embed.FS
+
 // FirebaseFlowServer creates a server to be used to go through firebase login.
 type FirebaseFlowServer struct {
-	log      logr.Logger
 	config   oauth2.Config
 	verifier *oidc.IDTokenVerifier
 	host     string
@@ -28,37 +33,44 @@ type FirebaseFlowServer struct {
 	handlers *OIDCHandlers
 }
 
-func NewFirebaseFlowServer(config oauth2.Config, verifier *oidc.IDTokenVerifier, log logr.Logger) (*FirebaseFlowServer, error) {
-	u, err := url.Parse(config.RedirectURL)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Could not parse URL %v", config.RedirectURL)
-	}
+//func NewFirebaseFlowServer(config oauth2.Config, verifier *oidc.IDTokenVerifier, log logr.Logger) (*FirebaseFlowServer, error) {
+//	u, err := url.Parse(config.RedirectURL)
+//	if err != nil {
+//		return nil, errors.Wrapf(err, "Could not parse URL %v", config.RedirectURL)
+//	}
+//
+//	handlers, err := NewOIDCHandlers(config, verifier)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return &FirebaseFlowServer{
+//		log:      log,
+//		config:   config,
+//		verifier: verifier,
+//		host:     u.Host,
+//		c:        make(chan tokenSourceOrError, 10),
+//		handlers: handlers,
+//	}, nil
+//}
 
-	handlers, err := NewOIDCHandlers(config, verifier)
-	if err != nil {
-		return nil, err
-	}
-
+func NewFirebaseFlowServer() (*FirebaseFlowServer, error) {
 	return &FirebaseFlowServer{
-		log:      log,
-		config:   config,
-		verifier: verifier,
-		host:     u.Host,
-		c:        make(chan tokenSourceOrError, 10),
-		handlers: handlers,
+		host: "localhost:9010",
+		c:    make(chan tokenSourceOrError, 10),
 	}, nil
 }
-
 func (s *FirebaseFlowServer) Address() string {
 	return fmt.Sprintf("http://%v", s.host)
 }
 
 // AuthStartURL returns the URL to kickoff the oauth login flow.
 func (s *FirebaseFlowServer) AuthStartURL() string {
-	return s.Address() + authStartPrefix
+	return s.Address() + "login.html"
 }
 
 func (s *FirebaseFlowServer) writeStatus(w http.ResponseWriter, message string, code int) {
+	log := zapr.NewLogger(zap.L())
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 
@@ -70,12 +82,12 @@ func (s *FirebaseFlowServer) writeStatus(w http.ResponseWriter, message string, 
 
 	enc := json.NewEncoder(w)
 	if err := enc.Encode(resp); err != nil {
-		s.log.Error(err, "Failed to marshal RequestStatus", "RequestStatus", resp, "code", code)
+		log.Error(err, "Failed to marshal RequestStatus", "RequestStatus", resp, "code", code)
 	}
 
 	if code != http.StatusOK {
 		caller := debug.ThisCaller()
-		s.log.Info("HTTP error", "RequestStatus", resp, "code", code, "caller", caller)
+		log.Info("HTTP error", "RequestStatus", resp, "code", code, "caller", caller)
 	}
 }
 
@@ -105,7 +117,7 @@ func (s *FirebaseFlowServer) waitForReady() error {
 // The server is shutdown after the flow is complete. Since the flow should return a refresh token
 // it shouldn't be necessary to keep it running.
 func (s *FirebaseFlowServer) Run() (*IDTokenSource, error) {
-	log := s.log
+	log := zapr.NewLogger(zap.L())
 
 	go func() {
 		s.startAndBlock()
@@ -147,10 +159,33 @@ func (s *FirebaseFlowServer) Run() (*IDTokenSource, error) {
 
 // startAndBlock starts the server and blocks.
 func (s *FirebaseFlowServer) startAndBlock() {
-	log := s.log
+	log := zapr.NewLogger(zap.L())
 
 	router := mux.NewRouter().StrictSlash(true)
 
+	// http.FS can be used to create a http Filesystem
+	var staticFS = http.FS(assetFiles)
+	//fs := http.FileServer(staticFS)
+
+	assets, err := assetFiles.ReadDir("assets")
+	if err != nil {
+		panic(err)
+	}
+
+	// Add the assets individually because we don't want to serve them behind a prefix because then
+	// we'd have to update all the links in the asset directory
+	for _, f := range assets {
+		log.Info("Adding asset", "asset", f.Name())
+		router.HandleFunc("/"+f.Name(), func(w http.ResponseWriter, r *http.Request) {
+			b, err := staticFS.Open("assets/" + f.Name())
+			if err != nil {
+				s.writeStatus(w, fmt.Sprintf("Failed to open asset %v", f.Name()), http.StatusInternalServerError)
+				return
+			}
+			http.ServeContent(w, r, f.Name(), time.Time{}, b)
+		})
+	}
+	//router.PathPrefix("/assets/").Handler(http.StripPrefix("/assets/", fs))
 	//router.HandleFunc(authStartPrefix, s.handleStartWebFlow)
 	router.HandleFunc("/healthz", s.HealthCheck)
 	//router.HandleFunc(authCallbackUrl, s.handleAuthCallback)
@@ -161,12 +196,10 @@ func (s *FirebaseFlowServer) startAndBlock() {
 
 	s.srv = &http.Server{Addr: s.host, Handler: router}
 
-	err := s.srv.ListenAndServe()
-
-	if err != nil {
+	if err := s.srv.ListenAndServe(); err != nil {
 		log.Error(err, "FirebaseFlowServer returned error")
 	}
-	log.Info("OIDC server has been shutdown")
+	log.Info("FirebaseFlowServer server has been shutdown")
 }
 
 //// handleStartWebFlow kicks off the OIDC web flow.
