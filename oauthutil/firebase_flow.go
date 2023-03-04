@@ -66,7 +66,7 @@ func (s *FirebaseFlowServer) Address() string {
 
 // AuthStartURL returns the URL to kickoff the oauth login flow.
 func (s *FirebaseFlowServer) AuthStartURL() string {
-	return s.Address() + "login.html"
+	return s.Address() + "/login.html"
 }
 
 func (s *FirebaseFlowServer) writeStatus(w http.ResponseWriter, message string, code int) {
@@ -165,29 +165,33 @@ func (s *FirebaseFlowServer) startAndBlock() {
 
 	// http.FS can be used to create a http Filesystem
 	var staticFS = http.FS(assetFiles)
-	//fs := http.FileServer(staticFS)
 
 	assets, err := assetFiles.ReadDir("assets")
 	if err != nil {
 		panic(err)
 	}
 
-	// Add the assets individually because we don't want to serve them behind a prefix because then
+	// Add the assets individually because we don't want to serve them behind a path prefix because then
 	// we'd have to update all the links in the asset directory
 	for _, f := range assets {
 		log.Info("Adding asset", "asset", f.Name())
-		router.HandleFunc("/"+f.Name(), func(w http.ResponseWriter, r *http.Request) {
-			b, err := staticFS.Open("assets/" + f.Name())
-			if err != nil {
-				s.writeStatus(w, fmt.Sprintf("Failed to open asset %v", f.Name()), http.StatusInternalServerError)
-				return
+		// We need to mint a new handler function for each asset
+		handler := func(name string) http.HandlerFunc {
+			return func(w http.ResponseWriter, r *http.Request) {
+				b, err := staticFS.Open("assets/" + name)
+				if err != nil {
+					s.writeStatus(w, fmt.Sprintf("Failed to open asset %v", f.Name()), http.StatusInternalServerError)
+					return
+				}
+				http.ServeContent(w, r, name, time.Time{}, b)
 			}
-			http.ServeContent(w, r, f.Name(), time.Time{}, b)
-		})
+		}(f.Name())
+		router.HandleFunc("/"+f.Name(), handler)
 	}
 	//router.PathPrefix("/assets/").Handler(http.StripPrefix("/assets/", fs))
 	//router.HandleFunc(authStartPrefix, s.handleStartWebFlow)
 	router.HandleFunc("/healthz", s.HealthCheck)
+	router.Handle("/", http.RedirectHandler("/login.html", http.StatusPermanentRedirect))
 	//router.HandleFunc(authCallbackUrl, s.handleAuthCallback)
 
 	router.NotFoundHandler = http.HandlerFunc(s.NotFoundHandler)
