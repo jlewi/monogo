@@ -1,0 +1,13 @@
+{
+  "name": "Firebase Login",
+  "short_name": "Firebase Login",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff",
+  "lang": "en-US",
+  "description": "FirebaseUI Firebase Login.",
+  "prefer_related_applications": false,
+  "theme_color": "#fff",
+  "scope": "/",
+  "orientation": "portrait-primary"
+}

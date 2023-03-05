@@ -33,6 +33,7 @@ func main() {
 	rootCmd.AddCommand(commands.NewKubectlContext())
 	rootCmd.AddCommand(commands.NewJWTCommands())
 	rootCmd.AddCommand(commands.NewIAPCommands())
+	rootCmd.AddCommand(commands.NewAuthCommands())
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Printf("Command failed with error: %+v", err)
 		os.Exit(1)

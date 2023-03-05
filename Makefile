@@ -5,18 +5,18 @@ echo:
 build-dir:
 	mkdir -p .build
 
-build-go: build-dir
+build: build-dir
 	CGO_ENABLED=0 go build -o .build/devcli github.com/jlewi/monogo/cli
 
-tidy-go:
+tidy:
 	gofmt -s -w .
 	goimports -w .
 
-lint-go:
+lint:
 	# golangci-lint automatically searches up the root tree for configuration files.
 	golangci-lint run
 
-test-go:
+test:
 	go test -v ./...
 
 test-go-integration:
