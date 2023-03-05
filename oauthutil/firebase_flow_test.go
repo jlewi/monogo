@@ -1,10 +1,66 @@
 package oauthutil
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"github.com/jlewi/p22h/backend/pkg/logging"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"testing"
 )
+
+func Test_IDToken(t *testing.T) {
+	raw, err := os.ReadFile("/tmp/user.json")
+	if err != nil {
+		t.Fatalf("Could not read user.json; %v", err)
+	}
+	user := &FirebaseUser{}
+
+	if err := json.Unmarshal(raw, user); err != nil {
+		t.Fatalf("Could not unmarshal user; %v", err)
+	}
+
+	path := "https://securetoken.googleapis.com/v1/token"
+
+	// https://firebase.google.com/docs/reference/rest/auth/#section-refresh-token
+	params := url.Values{
+		"key": []string{user.APIKey},
+	}
+
+	path = path + "?" + params.Encode()
+
+	type RefreshRequest struct {
+		GrantType    string `json:"grant_type"`
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	req := &RefreshRequest{
+		GrantType:    "refresh_token",
+		RefreshToken: user.StsTokenManager.RefreshToken,
+	}
+
+	var b bytes.Buffer
+	if err := json.NewEncoder(&b).Encode(req); err != nil {
+		t.Fatalf("Could not encode request; %v", err)
+	}
+	resp, err := http.Post(path, "application/json", &b)
+	if err != nil {
+		t.Fatalf("Could not post request; %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status code %v; got %v", http.StatusOK, resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Could not read body; %v", err)
+	}
+	fmt.Printf("Body:\n%v", string(body))
+}
 
 func Test_FirebaseFlowE2E(t *testing.T) {
 	if os.Getenv("GITHUB_ACTIONS") != "" {
@@ -57,7 +113,6 @@ func Test_DecodeUser(t *testing.T) {
   "appName": "[DEFAULT]"
 }
 `
-
 	user, err := decodeFirebaseUser([]byte(raw))
 	if err != nil {
 		t.Fatalf("Could not decode user; %v", err)

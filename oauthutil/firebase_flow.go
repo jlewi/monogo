@@ -17,6 +17,7 @@ import (
 	"golang.org/x/oauth2"
 	"io"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -236,7 +237,11 @@ func (s *FirebaseFlowServer) handleAuthCallback(w http.ResponseWriter, r *http.R
 		s.writeStatus(w, "Failed to read request body", http.StatusInternalServerError)
 		return
 	}
-	user, err := decodeFirebaseUser(data)
+
+	// DO NOT SUBMIT debugging only
+	os.WriteFile("/tmp/user.json", data, 0644)
+
+	_, err = decodeFirebaseUser(data)
 	if err != nil {
 		log.Error(err, "Failed to decode firebase user from response")
 		s.writeStatus(w, "Failed to decode firebase user", http.StatusInternalServerError)
@@ -285,6 +290,8 @@ type FirebaseUser struct {
 	UID string `json:"uid"`
 	*auth.UserInfo
 	StsTokenManager *StsTokenManager `json:"stsTokenManager"`
+	APIKey          string           `json:"apiKey"`
+	AppName         string           `json:"appName"`
 }
 
 type StsTokenManager struct {
