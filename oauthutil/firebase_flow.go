@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"firebase.google.com/go/auth"
 	"fmt"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-logr/zapr"
@@ -14,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
+	"io"
 	"net/http"
 	"time"
 )
@@ -101,7 +103,9 @@ func (s *FirebaseFlowServer) NotFoundHandler(w http.ResponseWriter, r *http.Requ
 
 // waitForReady waits until the server is healthy.
 func (s *FirebaseFlowServer) waitForReady() error {
-	endTime := time.Now().Add(3 * time.Minute)
+	// DO NOT SUBMIT; the long timeout was for debugging
+	endTime := time.Now().Add(100 * time.Minute)
+	// endTime := time.Now().Add(3 * time.Minute)
 	for time.Now().Before(endTime) {
 
 		r, err := http.Get(s.Address() + "/healthz")
@@ -192,7 +196,7 @@ func (s *FirebaseFlowServer) startAndBlock() {
 	//router.HandleFunc(authStartPrefix, s.handleStartWebFlow)
 	router.HandleFunc("/healthz", s.HealthCheck)
 	router.Handle("/", http.RedirectHandler("/login.html", http.StatusPermanentRedirect))
-	//router.HandleFunc(authCallbackUrl, s.handleAuthCallback)
+	router.HandleFunc(authCallbackUrl, s.handleAuthCallback)
 
 	router.NotFoundHandler = http.HandlerFunc(s.NotFoundHandler)
 
@@ -206,34 +210,85 @@ func (s *FirebaseFlowServer) startAndBlock() {
 	log.Info("FirebaseFlowServer server has been shutdown")
 }
 
-//// handleStartWebFlow kicks off the OIDC web flow.
-//// It was copied from: https://github.com/coreos/go-oidc/blob/2cafe189143f4a454e8b4087ef892be64b1c77df/example/idtoken/app.go#L65
-//// It sets some cookies before redirecting to the OIDC provider's URL for obtaining an authorization code.
-//func (s *FirebaseFlowServer) handleStartWebFlow(w http.ResponseWriter, r *http.Request) {
-//	// N.B. we currently ignore the cookie and state because we run thisflow in a CLI/application. The implicit
-//	// assumption is that a single user is going through the flow a single time so we don't need to use
-//	// cookie and state to keep track of the user's session. We also don't need to use the cookie
-//	// to keep track of the page the user was visiting before they started the flow.
-//	_, err := s.handlers.RedirectToAuthURL(w, r)
-//	if err != nil {
-//		s.log.Error(err, "Failed to handle auth start")
-//	}
-//}
+// // handleStartWebFlow kicks off the OIDC web flow.
+// // It was copied from: https://github.com/coreos/go-oidc/blob/2cafe189143f4a454e8b4087ef892be64b1c77df/example/idtoken/app.go#L65
+// // It sets some cookies before redirecting to the OIDC provider's URL for obtaining an authorization code.
 //
-//// handleAuthCallback handles the OIDC auth callback code copied from
-//// https://github.com/coreos/go-oidc/blob/2cafe189143f4a454e8b4087ef892be64b1c77df/example/idtoken/app.go#L82.
-////
-//// The Auth callback is invoked in step 21 of the OIDC protocol.
-//// https://solid.github.io/solid-oidc/primer/#:~:text=Solid%2DOIDC%20builds%20on%20top,authentication%20in%20the%20Solid%20ecosystem.
-//// The OpenID server responds with a 303 redirect to the AuthCallback URL and passes the authorization code.
-//// This is a mechanism for the authorization code to be passed into the code.
-//func (s *FirebaseFlowServer) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
-//	_, ts, err := s.handlers.HandleAuthCode(w, r)
-//	if err != nil {
-//		s.log.Error(err, "Failed to handle auth callback")
-//		s.c <- tokenSourceOrError{err: err}
-//		return
+//	func (s *FirebaseFlowServer) handleStartWebFlow(w http.ResponseWriter, r *http.Request) {
+//		// N.B. we currently ignore the cookie and state because we run thisflow in a CLI/application. The implicit
+//		// assumption is that a single user is going through the flow a single time so we don't need to use
+//		// cookie and state to keep track of the user's session. We also don't need to use the cookie
+//		// to keep track of the page the user was visiting before they started the flow.
+//		_, err := s.handlers.RedirectToAuthURL(w, r)
+//		if err != nil {
+//			s.log.Error(err, "Failed to handle auth start")
+//		}
 //	}
 //
-//	s.c <- tokenSourceOrError{ts: ts}
-//}
+// handleAuthCallback handles a callback from the clientside application. It is called
+// by the client side JS to pass the oauth tokens along
+func (s *FirebaseFlowServer) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
+	log := zapr.NewLogger(zap.L())
+	log.Info("Handling auth callback")
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Error(err, "Failed to read request body")
+		s.writeStatus(w, "Failed to read request body", http.StatusInternalServerError)
+		return
+	}
+	user, err := decodeFirebaseUser(data)
+	if err != nil {
+		log.Error(err, "Failed to decode firebase user from response")
+		s.writeStatus(w, "Failed to decode firebase user", http.StatusInternalServerError)
+		return
+	}
+
+	//oauth2.Config{
+	//	ClientID:     "",
+	//	ClientSecret: "",
+	//	Endpoint:     oauth2.Endpoint{},
+	//	RedirectURL:  "",
+	//	Scopes:       nil,
+	//}
+	//oauth2.TokenSource(s.ctx, s.tokenSource(user))
+	//IDTokenSource{
+	//	Source:   nil,
+	//	Verifier: nil,
+	//}
+	//for k, v := range r.Header {
+	//	log.Info("Header", "key", k, "value", v)
+	//}
+	//_, ts, err := s.handlers.HandleAuthCode(w, r)
+	//if err != nil {
+	//	s.log.Error(err, "Failed to handle auth callback")
+	//	s.c <- tokenSourceOrError{err: err}
+	//	return
+	//}
+	//
+	//s.c <- tokenSourceOrError{ts: ts}
+}
+
+// decodeFirebaseUser decodes the json representation of a firebase User
+// https://firebase.google.com/docs/reference/js/v8/firebase.User#tojson
+func decodeFirebaseUser(b []byte) (*FirebaseUser, error) {
+	u := &FirebaseUser{}
+
+	err := json.Unmarshal(b, u)
+	return u, err
+}
+
+// FirebaseUser struct is intended to be a golang version of the JS firebase.User object
+// https://firebase.google.com/docs/reference/js/v8/firebase.User#tojson
+type FirebaseUser struct {
+	// UID overrides the UID field in UserInfo because the json tag should be uid not rawID which is what's
+	// defined in UserInfo
+	UID string `json:"uid"`
+	*auth.UserInfo
+	StsTokenManager *StsTokenManager `json:"stsTokenManager"`
+}
+
+type StsTokenManager struct {
+	RefreshToken   string `json:"refreshToken"`
+	AccessToken    string `json:"accessToken"`
+	ExpirationTime int64  `json:"expirationTime"`
+}

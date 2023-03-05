@@ -95,7 +95,9 @@ function getUiConfig() {
 
 // Initialize the FirebaseUI Widget using Firebase.
 var ui = new firebaseui.auth.AuthUI(firebase.auth());
+
 // Disable auto-sign in.
+// TODO(jeremy): Do we want to allow autosign in? How does that work?
 ui.disableAutoSignIn();
 
 
@@ -136,6 +138,15 @@ var handleSignedInUser = function(user) {
   document.getElementById('name').textContent = user.displayName;
   document.getElementById('email').textContent = user.email;
   document.getElementById('phone').textContent = user.phoneNumber;
+  globalThis.user = user;
+  // TODO how do we get the actual URL its on.
+  fetch("http://localhost:9010/auth/callback", {
+    method: "POST", // default, so we can ignore,
+    body: JSON.stringify(user.toJSON()),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
   if (user.photoURL) {
     var photoURL = user.photoURL;
     // Append size to the photo URL for Google hosted images to avoid requesting
@@ -160,6 +171,7 @@ var handleSignedInUser = function(user) {
 var handleSignedOutUser = function() {
   document.getElementById('user-signed-in').style.display = 'none';
   document.getElementById('user-signed-out').style.display = 'block';
+
   ui.start('#firebaseui-container', getUiConfig());
 };
 
