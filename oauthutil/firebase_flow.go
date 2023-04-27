@@ -4,8 +4,13 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
-	"firebase.google.com/go/auth"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"time"
+
+	"firebase.google.com/go/auth"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-logr/zapr"
 	"github.com/gorilla/mux"
@@ -15,10 +20,6 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
-	"io"
-	"net/http"
-	"os"
-	"time"
 )
 
 // embed the assets
@@ -104,9 +105,7 @@ func (s *FirebaseFlowServer) NotFoundHandler(w http.ResponseWriter, r *http.Requ
 
 // waitForReady waits until the server is healthy.
 func (s *FirebaseFlowServer) waitForReady() error {
-	// DO NOT SUBMIT; the long timeout was for debugging
-	endTime := time.Now().Add(100 * time.Minute)
-	// endTime := time.Now().Add(3 * time.Minute)
+	endTime := time.Now().Add(3 * time.Minute)
 	for time.Now().Before(endTime) {
 
 		r, err := http.Get(s.Address() + "/healthz")

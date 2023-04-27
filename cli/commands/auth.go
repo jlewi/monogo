@@ -2,11 +2,12 @@ package commands
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/go-logr/zapr"
 	"github.com/jlewi/monogo/oauthutil"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-	"os"
 )
 
 // NewAuth creates new commands for working with authorization
