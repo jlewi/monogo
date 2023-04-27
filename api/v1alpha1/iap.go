@@ -23,11 +23,8 @@ type ResourceRef struct {
 }
 
 type ServiceRef struct {
-	Project string `yaml:"project" json:"project"`
-	Service string `yaml:"service" json:"service"`
-	// Ingress isn't needed if you are using a gateway
-	// TODO(jeremy): Can we deprecate specifying ingress and instead get the neg name from the K8s service annotation
-	// always i.e always use resolver.GetGCPBackendFromService
+	Project   string `yaml:"project" json:"project"`
+	Service   string `yaml:"service" json:"service"`
 	Ingress   string `yaml:"ingress" json:"ingress"`
 	Namespace string `yaml:"namespace" json:"namespace"`
 }

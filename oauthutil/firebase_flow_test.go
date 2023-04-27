@@ -4,13 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/jlewi/p22h/backend/pkg/logging"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"testing"
-
-	"github.com/jlewi/p22h/backend/pkg/logging"
 )
 
 func Test_IDToken(t *testing.T) {
