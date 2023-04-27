@@ -4,25 +4,22 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
+	compute "cloud.google.com/go/compute/apiv1"
 	iap "cloud.google.com/go/iap/apiv1"
 	"github.com/go-logr/zapr"
 	"github.com/jlewi/monogo/api/v1alpha1"
 	"github.com/jlewi/monogo/helpers"
 	iapLib "github.com/jlewi/monogo/iap"
+	"github.com/jlewi/monogo/k8s"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2/google"
+	iampb "google.golang.org/genproto/googleapis/iam/v1"
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
-
-	iampb "google.golang.org/genproto/googleapis/iam/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
@@ -47,7 +44,7 @@ func NewGetIAMPolicy() *cobra.Command {
 	var namespace string
 	var service string
 	var ingress string
-	k8sFlags := &K8SClientFlags{}
+	k8sFlags := &k8s.K8SClientFlags{}
 
 	cmd := &cobra.Command{
 		Use:   "get-iam-policy",
@@ -112,7 +109,7 @@ func NewGetIAMPolicy() *cobra.Command {
 // We should support K8s apply -f semantics and use the kyaml libraries to find and apply all resources.
 func NewSetIAMPolicy() *cobra.Command {
 	var policyFile string
-	k8sFlags := &K8SClientFlags{}
+	k8sFlags := &k8s.K8SClientFlags{}
 	cmd := &cobra.Command{
 		Use:   "set-iam-policy",
 		Short: "Sets the IAM IAP policy for a resource. This completely overrides the policy with the specified one",
@@ -138,7 +135,14 @@ func NewSetIAMPolicy() *cobra.Command {
 				if err != nil {
 					return errors.Wrapf(err, "Failed to create IAP Admin client")
 				}
-				defer c.Close()
+				defer helpers.DeferIgnoreError(c.Close)
+
+				bSvc, err := compute.NewBackendServicesRESTClient(context.Background())
+				defer helpers.DeferIgnoreError(bSvc.Close)
+
+				if err != nil {
+					return errors.Wrapf(err, "Failed to create backend service client")
+				}
 
 				if isValid, msg := policy.IsValid(); !isValid {
 					return errors.Errorf("policy is invalid; %v", msg)
@@ -154,11 +158,36 @@ func NewSetIAMPolicy() *cobra.Command {
 
 					namespace := policy.Spec.ResourceRef.ServiceRef.Namespace
 					svcName := policy.Spec.ResourceRef.ServiceRef.Service
-					ingressName := policy.Spec.ResourceRef.ServiceRef.Ingress
+					project := policy.Spec.ResourceRef.ServiceRef.Project
 
-					backend, err := iapLib.GetGCPBackend(client, namespace, svcName, ingressName)
-					if err != nil {
-						return err
+					ingressName := policy.Spec.ResourceRef.ServiceRef.Ingress
+					var backend string
+					if ingressName == "" {
+						negs, err := iapLib.GetGCPBackendFromService(client, bSvc, project, namespace, svcName)
+						if err != nil {
+							return err
+						}
+
+						if len(negs) == 0 {
+							return errors.Errorf("No NEG found for service %v/%v", namespace, svcName)
+						}
+
+						if len(negs) > 1 {
+							// TODO(jeremy): Service could have multiple ports. Should we specify the port in the
+							// policy on which to attach the IAP policy to
+							return errors.Errorf("Multiple NEG found for service %v/%v; code needs to be updated to handle this", namespace, svcName)
+						}
+
+						for _, b := range negs {
+							backend = b
+						}
+					} else {
+						// TODO(jeremy): Can we deprecate this code path? I think the other approach works regardless
+						// of whether an ingress or gateway is used
+						backend, err = iapLib.GetGCPBackend(client, namespace, svcName, ingressName)
+						if err != nil {
+							return err
+						}
 					}
 
 					external = iapLib.BackendIAPName(policy.Spec.ResourceRef.ServiceRef.Project, backend)
@@ -206,7 +235,7 @@ func CreateOAuthClientSecret() *cobra.Command {
 	var k8sContext string
 	var name string
 	var file string
-	k8sFlags := &K8SClientFlags{}
+	k8sFlags := &k8s.K8SClientFlags{}
 
 	cmd := &cobra.Command{
 		Use:   "create-secret",
@@ -269,32 +298,4 @@ func CreateOAuthClientSecret() *cobra.Command {
 	cmd.Flags().StringVarP(&file, "file", "", "", "file containing the OAuth client id")
 	k8sFlags.AddFlags(cmd)
 	return cmd
-}
-
-type K8SClientFlags struct {
-	Kubeconfig string
-}
-
-func (f *K8SClientFlags) AddFlags(cmd *cobra.Command) {
-	kubeconfig := ""
-	if home := homedir.HomeDir(); home != "" {
-		kubeconfig = filepath.Join(home, ".kube", "config")
-	}
-
-	cmd.Flags().StringVarP(&f.Kubeconfig, "kubeconfig", "", kubeconfig, "The kubeconfig file to use")
-}
-
-func (f *K8SClientFlags) NewClient() (*kubernetes.Clientset, error) {
-	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", f.Kubeconfig)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to build config from file %v", f.Kubeconfig)
-	}
-
-	// create the clientset
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to create clientset")
-	}
-	return clientset, nil
 }
