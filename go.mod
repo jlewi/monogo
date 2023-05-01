@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	cloud.google.com/go/iap v1.5.0
+	firebase.google.com/go v3.13.0+incompatible
 	firebase.google.com/go/v4 v4.10.0
 	github.com/MicahParks/keyfunc v1.9.0
 	github.com/coreos/go-oidc/v3 v3.5.0
