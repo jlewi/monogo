@@ -4,7 +4,6 @@ on: [push]
 defaults:
   run:
     shell: bash -ieo pipefail {0}
-    working-directory: go
 jobs:
   test:
     name: golang test & build

@@ -157,8 +157,8 @@ func NewCreateFirebaseJWTCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&uid, "uid", "", "", "The user id to make the JWT for")
 	cmd.Flags().StringVarP(&email, "email", "", "", "The email make the JWT for")
 	cmd.Flags().StringVarP(&adminSA, "secret", "", "", "JSON file containg the secret for the admin service account. Download this from the GCP service accounts page")
-	cmd.MarkFlagRequired("project")
-	cmd.MarkFlagRequired("secret")
+	helpers.IgnoreError(cmd.MarkFlagRequired("project"))
+	helpers.IgnoreError(cmd.MarkFlagRequired("secret"))
 	return cmd
 }
 
@@ -210,6 +210,6 @@ This command is useful for inspecting the JWT to see claims and other informatio
 		},
 	}
 	cmd.Flags().StringVarP(&project, "project", "", "", "The firebase project to make the JWT for")
-	cmd.MarkFlagRequired("project")
+	helpers.IgnoreError(cmd.MarkFlagRequired("project"))
 	return cmd
 }

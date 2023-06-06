@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/jlewi/monogo/helpers"
+
 	compute "cloud.google.com/go/compute/apiv1"
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
@@ -80,7 +82,7 @@ func GetGCPBackendFromService(client *kubernetes.Clientset, bkSvc *compute.Backe
 	}
 
 	bSvc, err := compute.NewBackendServicesRESTClient(context.Background())
-	defer bSvc.Close()
+	helpers.DeferIgnoreError(bSvc.Close)
 
 	if err != nil {
 		return negToBackend, errors.Wrapf(err, "Failed to create backend service client")
