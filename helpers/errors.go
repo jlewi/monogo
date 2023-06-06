@@ -3,6 +3,7 @@ package helpers
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -56,6 +57,31 @@ func IsTypeError(err error, target error) bool {
 			return false
 		}
 	}
+}
+
+// ListOfErrors is used when we want to return more then one error.
+// This happens when we want to keep going and accumulate errors
+type ListOfErrors struct {
+	Causes []error
+	Final  error
+}
+
+// Error returns a single error wrapping all the errors.
+func (l *ListOfErrors) Error() string {
+	m := l.Final.Error() + "; Causes: "
+
+	c := []string{}
+	for _, i := range l.Causes {
+		c = append(c, i.Error())
+	}
+
+	m = m + strings.Join(c, ",")
+	return m
+}
+
+// AddCause adds an error to the list.
+func (l *ListOfErrors) AddCause(e error) {
+	l.Causes = append(l.Causes, e)
 }
 
 // NewTypeErrorMatcher creates a new MatchError function that matches errors of the given type.

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	compute "cloud.google.com/go/compute/apiv1"
+	"cloud.google.com/go/iam/apiv1/iampb"
 	iap "cloud.google.com/go/iap/apiv1"
 	"github.com/go-logr/zapr"
 	"github.com/jlewi/monogo/api/v1alpha1"
@@ -16,7 +17,6 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2/google"
-	iampb "google.golang.org/genproto/googleapis/iam/v1"
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/jlewi/monogo/helpers"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/jlewi/monogo/k8s"
 	"k8s.io/client-go/util/homedir"
@@ -69,7 +71,7 @@ func Test_GatewayToBackend(t *testing.T) {
 		t.Skip("Skipping test in GitHub Actions")
 	}
 	bSvc, err := compute.NewBackendServicesRESTClient(context.Background())
-	defer bSvc.Close()
+	helpers.DeferIgnoreError(bSvc.Close)
 
 	if err != nil {
 		t.Fatalf("Failed to create backend service client: %v", err)
