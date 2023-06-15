@@ -16,8 +16,10 @@ lint:
 	# golangci-lint automatically searches up the root tree for configuration files.
 	golangci-lint run
 
+# Run the unittests. We set GITHUB_ACTIONS=true to disable
+# tests that don't run in GHA
 test:
-	go test -v ./...
+	GITHUB_ACTIONS=true go test -v ./...
 
 test-go-integration:
 	go test --tags=integration -v ./...
