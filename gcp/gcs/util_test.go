@@ -106,7 +106,8 @@ func TestFindMatches(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			Input: "gs://mybucket/dirA/contract*.pdf",
+			// N.B. This is a regex
+			Input: "gs://mybucket/dirA/contract.*\\.pdf",
 			Results: []string{
 				"gs://mybucket/dirA/contract-1.pdf",
 				"gs://mybucket/dirA/contract-2.pdf",

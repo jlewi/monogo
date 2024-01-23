@@ -102,7 +102,7 @@ func (h *WebFlowHelper) GetTokenSource(ctx context.Context) (oauth2.TokenSource,
 
 	tok, err := h.config.Exchange(context.TODO(), authCode)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Unable to retrieve token from web: %v")
+		return nil, errors.Wrapf(err, "Unable to retrieve token from web")
 	}
 
 	return h.config.TokenSource(ctx, tok), nil
