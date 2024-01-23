@@ -54,7 +54,9 @@ func TransformFiles(files []string, inputPattern string, outputPattern string) (
 
 	for _, m := range matches {
 		buf := new(bytes.Buffer)
-		t.Execute(buf, m.Groups)
+		if err := t.Execute(buf, m.Groups); err != nil {
+			return results, errors.WithStack(errors.Wrapf(err, "Error executing template %v", outputPattern))
+		}
 		results[m.Value] = buf.String()
 	}
 	return results, nil

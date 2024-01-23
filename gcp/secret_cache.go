@@ -6,12 +6,12 @@ import (
 	"fmt"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
+	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
-	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

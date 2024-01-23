@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -67,7 +67,7 @@ func NewWebFlowHelper(oAuthClientFile string, scopes []string) (*WebFlowHelper, 
 		return nil, err
 
 	}
-	b, err := ioutil.ReadAll(reader)
+	b, err := io.ReadAll(reader)
 
 	if err != nil {
 		return nil, err
@@ -160,8 +160,7 @@ func (c *FileTokenCache) Save(token *oauth2.Token) error {
 		return err
 	}
 	defer f.Close()
-	json.NewEncoder(f).Encode(token)
-	return nil
+	return json.NewEncoder(f).Encode(token)
 }
 
 // CachedCredentialHelper is a credential helper that will cache the credential.
