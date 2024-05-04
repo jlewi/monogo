@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go/compute v1.23.1
 	cloud.google.com/go/iam v1.1.3
 	cloud.google.com/go/iap v1.9.1
+	cloud.google.com/go/logging v1.8.1
 	cloud.google.com/go/secretmanager v1.11.2
 	cloud.google.com/go/storage v1.36.0
 	firebase.google.com/go/v4 v4.10.0
@@ -16,6 +17,7 @@ require (
 	github.com/go-logr/zapr v1.2.3
 	github.com/golang-jwt/jwt/v4 v4.4.3
 	github.com/google/go-cmp v0.6.0
+	github.com/google/uuid v1.4.0
 	github.com/gorilla/mux v1.8.0
 	github.com/jlewi/p22h/backend v0.0.0-20220627190823-9107137fbd82
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
@@ -60,7 +62,6 @@ require (
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/google/s2a-go v0.1.7 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/google/uuid v1.4.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
 	github.com/googleapis/gax-go/v2 v2.12.0 // indirect
 	github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7 // indirect
