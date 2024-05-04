@@ -162,3 +162,48 @@ func readLogs(client *logadmin.Client, projectID string, runID string, minExpect
 		time.Sleep(pollTime)
 	}
 }
+
+func Test_ParseURI(t *testing.T) {
+	type testCase struct {
+		Input   string
+		Project string
+		LogName string
+		IsURI   bool
+	}
+
+	cases := []testCase{
+		{
+			Input:   "gcplogs:///projects/foyle-dev/logs/sinkTest",
+			Project: "foyle-dev",
+			LogName: "sinkTest",
+			IsURI:   true,
+		},
+		{
+			Input:   "/projects/foyle-dev/logs/sinkTest/some/extra/path",
+			Project: "",
+			LogName: "",
+			IsURI:   false,
+		},
+		{
+			Input:   "gcplogs:///projects/foyle-dev/logs/sinkTest/some/extra/path",
+			Project: "",
+			LogName: "",
+			IsURI:   false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Input, func(t *testing.T) {
+			project, logName, isURI := ParseURI(c.Input)
+			if project != c.Project {
+				t.Errorf("Project: got %v, want %v", project, c.Project)
+			}
+			if logName != c.LogName {
+				t.Errorf("LogName: got %v, want %v", logName, c.LogName)
+			}
+			if isURI != c.IsURI {
+				t.Errorf("IsURI: got %v, want %v", isURI, c.IsURI)
+			}
+		})
+	}
+}
