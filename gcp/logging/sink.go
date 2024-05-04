@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/logging"
@@ -19,11 +20,36 @@ const (
 	Scheme        = "gcplogs"
 	SeverityField = "severity"
 	TimeField     = "time"
+	MessageField  = "message"
 
 	// TraceField is the field Google Cloud Logging looks for the
 	// trace https://cloud.google.com/logging/docs/structured-logging
 	TraceField = "logging.googleapis.com/trace"
 )
+
+// ParseURI parses a URI of the form gcplogs:///projects/${PROJECT}/logs/${LOGNAME}
+// and returns project, logname, bool.
+// If the URI is not of the expected form false is returned.
+// If the scheme doesn't match the expected scheme empty values are returned.
+func ParseURI(uri string) (string, string, bool) {
+	u, err := url.Parse(uri)
+	if err != nil {
+		return "", "", false
+	}
+
+	if u.Scheme != Scheme {
+		return "", "", false
+	}
+	pieces := strings.Split(u.Path, "/")
+	if len(pieces) != 5 {
+		return "", "", false
+	}
+	if pieces[1] != "projects" || pieces[3] != "logs" {
+		return "", "", false
+	}
+
+	return pieces[2], pieces[4], true
+}
 
 // RegisterSink registers Sink as a zap sink; this allows zap to send logs to Cloud Logging.
 //
