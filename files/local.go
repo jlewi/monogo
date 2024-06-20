@@ -13,7 +13,7 @@ type LocalFileHelper struct{}
 // NewReader creates a new Reader for local file.
 func (h *LocalFileHelper) NewReader(uri string) (io.Reader, error) {
 	schemePrefix := FileScheme + "://"
-	strings.TrimPrefix(uri, schemePrefix)
+	uri = strings.TrimPrefix(uri, schemePrefix)
 	reader, err := os.Open(uri)
 
 	if err != nil {
