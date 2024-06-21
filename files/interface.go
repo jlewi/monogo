@@ -18,4 +18,5 @@ type FileHelper interface {
 type DirectoryHelper interface {
 	FileHelper
 	Glob(pattern string) ([]string, error)
+	Join(elem ...string) string
 }
