@@ -188,7 +188,9 @@ func (h *GcsHelper) Join(elem ...string) string {
 		return filepath.Join(elem...)
 	}
 
-	uri.Path = path.Join(elem[1:]...)
+	pieces := []string{uri.Path}
+	pieces = append(pieces, elem[1:]...)
+	uri.Path = path.Join(pieces...)
 	return uri.ToURI()
 }
 
