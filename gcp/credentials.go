@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jlewi/monogo/files"
+
 	"cloud.google.com/go/storage"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
@@ -43,7 +45,7 @@ type WebFlowHelper struct {
 // NewWebFlowHelper constructs a new web flow helper. oAuthClientFile should be the path to a credentials.json
 // downloaded from the API console.
 func NewWebFlowHelper(oAuthClientFile string, scopes []string) (*WebFlowHelper, error) {
-	var fHelper gcs.FileHelper
+	var fHelper files.FileHelper
 
 	if strings.HasPrefix(oAuthClientFile, "gs://") {
 		ctx := context.Background()
@@ -58,7 +60,7 @@ func NewWebFlowHelper(oAuthClientFile string, scopes []string) (*WebFlowHelper, 
 			Client: client,
 		}
 	} else {
-		fHelper = &gcs.LocalFileHelper{}
+		fHelper = &files.LocalFileHelper{}
 	}
 
 	reader, err := fHelper.NewReader(oAuthClientFile)

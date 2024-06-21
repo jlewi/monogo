@@ -39,3 +39,30 @@ func (f *Factory) Get(uri string) (FileHelper, error) {
 		return nil, errors.Errorf("Scheme %v is not supported", u.Scheme)
 	}
 }
+
+// GetDirHelper returns the correct DirectoryHelper based on a files scheme
+func (f *Factory) GetDirHelper(uri string) (DirectoryHelper, error) {
+	u, err := url.Parse(uri)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to parse URI %v", uri)
+	}
+
+	switch u.Scheme {
+	case "":
+		return &LocalFileHelper{}, nil
+	case GCSScheme:
+		ctx := context.Background()
+		client, err := storage.NewClient(ctx)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to create GCS storage client")
+		}
+		return &gcs.GcsHelper{
+			Ctx:    ctx,
+			Client: client,
+		}, nil
+	case FileScheme:
+		return &LocalFileHelper{}, nil
+	default:
+		return nil, errors.Errorf("Scheme %v is not supported", u.Scheme)
+	}
+}

@@ -11,5 +11,11 @@ import (
 type FileHelper interface {
 	Exists(path string) (bool, error)
 	NewReader(path string) (io.Reader, error)
+	// TODO(jlewi): Should the return type be io.WriteCloser?
 	NewWriter(path string) (io.Writer, error)
+}
+
+type DirectoryHelper interface {
+	FileHelper
+	Glob(pattern string) ([]string, error)
 }
