@@ -3,6 +3,7 @@ package files
 import (
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -49,4 +50,9 @@ func (h *LocalFileHelper) Exists(uri string) (bool, error) {
 		return false, nil
 	}
 	return true, nil
+}
+
+// Glob returns the list of files that match the pattern.
+func (h *LocalFileHelper) Glob(uri string) ([]string, error) {
+	return filepath.Glob(uri)
 }

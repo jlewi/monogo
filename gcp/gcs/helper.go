@@ -92,11 +92,6 @@ func (h *GcsHelper) NewWriter(uri string) (io.Writer, error) {
 
 	o := b.Object(p.Path)
 
-	// Make sure object doesn't already exist
-	if ObjectExists(h.Ctx, o) {
-		return nil, errors.WithStack(errors.Errorf("Can't write %v; It already exists", uri))
-	}
-
 	return o.NewWriter(h.Ctx), nil
 }
 
@@ -129,6 +124,43 @@ func (h *GcsHelper) Exists(uri string) (bool, error) {
 	o := b.Object(p.Path)
 
 	return ObjectExists(h.Ctx, o), nil
+}
+
+// Glob lists all objects matching some glob expression.
+
+func (h *GcsHelper) Glob(uri string) ([]string, error) {
+	paths := []string{}
+	p, err := Parse(uri)
+	if err != nil {
+		return paths, errors.WithStack(errors.Wrapf(err, "Could not glob objects matching %v", uri))
+	}
+
+	b := h.Client.Bucket(p.Bucket)
+
+	q := &storage.Query{
+		MatchGlob: p.Path,
+	}
+
+	objs := b.Objects(h.Ctx, q)
+
+	for {
+		i, err := objs.Next()
+
+		if err == iterator.Done {
+			return paths, nil
+		}
+
+		if err != nil {
+			return paths, errors.WithStack(errors.Wrapf(err, "Error getting next object matching %v", uri))
+		}
+
+		iPath := GcsPath{
+			Bucket: i.Bucket,
+			Path:   i.Name,
+		}
+
+		paths = append(paths, iPath.ToURI())
+	}
 }
 
 // BuildInputOutputList builds a map from input files to the files that they

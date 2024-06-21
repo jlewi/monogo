@@ -1,6 +1,9 @@
 package gcs
 
 import (
+	"context"
+	"io"
+	"os"
 	"regexp"
 	"testing"
 
@@ -144,5 +147,54 @@ func TestFindMatches(t *testing.T) {
 			t.Errorf("Case %v: Parse() mismatch (-want +got):\n%s", i, d)
 			continue
 		}
+	}
+}
+
+func Test_Glob(t *testing.T) {
+	if os.Getenv("GITHUB_ACTIONS") != "" {
+		t.Skip("Skipping test in GitHub Actions")
+	}
+
+	files := []string{
+		"gs://foyle-dev-mongo-testing/somefile/file-1.txt",
+		"gs://foyle-dev-mongo-testing/somefile/file-2.txt",
+		"gs://foyle-dev-mongo-testing/somefile/file-22.txt",
+		"gs://foyle-dev-mongo-testing/somefile/otherfile.txt",
+	}
+
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		t.Fatalf("Failed to create GCS storage client; error: %+v", err)
+	}
+
+	h := &GcsHelper{
+		Ctx:    ctx,
+		Client: client,
+	}
+
+	// Create the files
+	for _, f := range files {
+		w, err := h.NewWriter(f)
+		if err != nil {
+			t.Fatalf("Could not create writer for %v; error %v", f, err)
+		}
+		closer := w.(io.WriteCloser)
+		if err := closer.Close(); err != nil {
+			t.Fatalf("Could not close writer for %v; error %v", f, err)
+		}
+	}
+
+	expected := []string{
+		"gs://foyle-dev-mongo-testing/somefile/file-1.txt",
+		"gs://foyle-dev-mongo-testing/somefile/file-2.txt",
+	}
+
+	actual, err := h.Glob("gs://foyle-dev-mongo-testing/somefile/file-?.txt")
+	if err != nil {
+		t.Fatalf("Glob returned error %v", err)
+	}
+	if d := cmp.Diff(expected, actual); d != "" {
+		t.Errorf("Glob() mismatch (-want +got):\n%s", d)
 	}
 }
