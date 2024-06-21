@@ -6,6 +6,7 @@ import (
 	"io"
 	"math/rand"
 	"path"
+	"path/filepath"
 	"regexp"
 
 	"cloud.google.com/go/storage"
@@ -175,6 +176,20 @@ func (h *GcsHelper) BuildInputOutputList(input string, output string) (map[strin
 		return map[string]string{}, errors.Wrapf(err, "Could not list files matching: %v", input)
 	}
 	return util.TransformFiles(paths, input, output)
+}
+
+func (h *GcsHelper) Join(elem ...string) string {
+	uri, err := Parse(elem[0])
+	log := zapr.NewLogger(zap.L())
+	if err != nil {
+		log.Error(err, "Failed to parse URI", "uri", elem[0])
+		// Just fallback to using filepath.Join
+		// The parse error likely means its not a GCS URI
+		return filepath.Join(elem...)
+	}
+
+	uri.Path = path.Join(elem[1:]...)
+	return uri.ToURI()
 }
 
 func ObjectExists(ctx context.Context, o *storage.ObjectHandle) bool {

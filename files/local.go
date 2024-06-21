@@ -56,3 +56,7 @@ func (h *LocalFileHelper) Exists(uri string) (bool, error) {
 func (h *LocalFileHelper) Glob(uri string) ([]string, error) {
 	return filepath.Glob(uri)
 }
+
+func (h *LocalFileHelper) Join(elem ...string) string {
+	return filepath.Join(elem...)
+}

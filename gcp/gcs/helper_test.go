@@ -2,6 +2,7 @@ package gcs
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"regexp"
@@ -147,6 +148,38 @@ func TestFindMatches(t *testing.T) {
 			t.Errorf("Case %v: Parse() mismatch (-want +got):\n%s", i, d)
 			continue
 		}
+	}
+}
+
+func Test_Join(t *testing.T) {
+	type testCase struct {
+		Input    []string
+		Expected string
+	}
+
+	cases := []testCase{
+		{
+			Input:    []string{"gs://bucket", "folder1", "file.csv"},
+			Expected: "gs://bucket/folder1/file.csv",
+		},
+		{
+			Input:    []string{"gs://bucket/folder1", "file.csv"},
+			Expected: "gs://bucket/folder1/file.csv",
+		},
+		{
+			Input:    []string{"gs://bucket/folder1/", "file.csv"},
+			Expected: "gs://bucket/folder1/file.csv",
+		},
+	}
+
+	h := &GcsHelper{}
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
+			actual := h.Join(c.Input...)
+			if d := cmp.Diff(c.Expected, actual); d != "" {
+				t.Errorf("Join() mismatch (-want +got):\n%s", d)
+			}
+		})
 	}
 }
 
