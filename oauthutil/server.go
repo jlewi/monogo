@@ -101,7 +101,7 @@ func (s *OAuthHandlers) HandleAuthCode(w http.ResponseWriter, r *http.Request) (
 	}
 	actual := r.URL.Query().Get("state")
 	if actual != state.Value {
-		s.log.Info("state dind't match", "got", actual, "want", state.Value)
+		s.log.Info("state didn't match", "got", actual, "want", state.Value)
 		http.Error(w, "state did not match", http.StatusBadRequest)
 		return "", nil, err
 	}

@@ -160,13 +160,10 @@ func (s *OIDCWebFlowServer) Run() (*IDTokenSource, error) {
 			return nil, errors.Wrapf(tsOrError.err, "OIDC flow didn't complete successfully")
 		}
 		log.Info("OIDC flow completed")
-		// TODO(jeremy): This is a hack to deal with a race condition in which the server starts shutting down
-		// but oauth flow still sends it some request.
 		return tsOrError.ts, nil
 	case <-time.After(3 * time.Minute):
 		return nil, errors.New("Timeout waiting for OIDC flow to complete")
 	}
-
 }
 
 // startAndBlock starts the server and blocks.
@@ -187,7 +184,7 @@ func (s *OIDCWebFlowServer) startAndBlock() {
 
 	err := s.srv.ListenAndServe()
 
-	if err != nil {
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Error(err, "OIDCWebFlowServer returned error")
 	}
 	log.Info("OIDC server has been shutdown")
