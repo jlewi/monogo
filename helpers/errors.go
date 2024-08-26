@@ -68,14 +68,19 @@ type ListOfErrors struct {
 
 // Error returns a single error wrapping all the errors.
 func (l *ListOfErrors) Error() string {
-	m := l.Final.Error() + "; Causes: "
+	m := ""
+	if l.Final != nil {
+		m += l.Final.Error() + "; Causes: "
+	} else {
+		m += "List of Errors: "
+	}
 
-	c := []string{}
+	c := make([]string, 0, len(l.Causes))
 	for _, i := range l.Causes {
 		c = append(c, i.Error())
 	}
 
-	m = m + strings.Join(c, ",")
+	m = m + strings.Join(c, ", ")
 	return m
 }
 
