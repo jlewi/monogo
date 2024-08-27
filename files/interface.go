@@ -11,6 +11,9 @@ import (
 type FileHelper interface {
 	Exists(path string) (bool, error)
 	NewReader(path string) (io.Reader, error)
+	// NewWriter creates a new writer.
+	// If the path already exists the file is truncated.
+	// Caller should call exists to test if it already exists.
 	// TODO(jlewi): Should the return type be io.WriteCloser?
 	NewWriter(path string) (io.Writer, error)
 }
