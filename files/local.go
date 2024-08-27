@@ -26,14 +26,11 @@ func (h *LocalFileHelper) NewReader(uri string) (io.Reader, error) {
 
 // NewWriter creates a new Writer for the local file.
 //
-// TODO(jlewi): Can we add options to control filemode?
+// N.B. Prior to 2024/08/26 this function would return an error if the file already existed. This behavior was changed
+// so that the file is truncated if it already exists. If the caller doesn't want to overwrite it, they should
+// use exists to check if the file exists before calling this function. This change was made because we want to
+// support truncation.
 func (h *LocalFileHelper) NewWriter(uri string) (io.Writer, error) {
-	_, err := os.Stat(uri)
-
-	if err == nil || !os.IsNotExist(err) {
-		return nil, errors.WithStack(errors.Errorf("Can't write %v; It already exists", uri))
-	}
-
 	writer, err := os.Create(uri)
 
 	if err != nil {
