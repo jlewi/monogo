@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jlewi/monogo/helpers"
+
 	"github.com/pkg/errors"
 )
 
@@ -31,6 +33,12 @@ func (h *LocalFileHelper) NewReader(uri string) (io.Reader, error) {
 // use exists to check if the file exists before calling this function. This change was made because we want to
 // support truncation.
 func (h *LocalFileHelper) NewWriter(uri string) (io.Writer, error) {
+	dir := filepath.Dir(uri)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if err := os.MkdirAll(dir, helpers.UserGroupAllPerm); err != nil {
+			return nil, errors.WithStack(errors.Wrapf(err, "Could not create directory: %v", dir))
+		}
+	}
 	writer, err := os.Create(uri)
 
 	if err != nil {
