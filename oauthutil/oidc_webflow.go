@@ -14,7 +14,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"github.com/gorilla/mux"
-	"github.com/jlewi/monogo/networking"
 	"github.com/jlewi/p22h/backend/api"
 	"github.com/jlewi/p22h/backend/pkg/debug"
 	"github.com/pkg/browser"
@@ -42,6 +41,8 @@ const (
 //
 // Refer to oidc_webflow_int_test.go for an example of how to use this.
 // TODO(jeremy): Add caching of the refresh token.
+//
+// TODO(jlewi): should we make /auth/callback a configurable value?
 type OIDCWebFlowServer struct {
 	log      logr.Logger
 	config   oauth2.Config
@@ -256,6 +257,7 @@ func (f *OIDCWebFlowFlags) Flow() (*OIDCWebFlowServer, error) {
 
 	// If modifying these scopes, delete your previously saved token.json.
 	scopes := []string{oidc.ScopeOpenID, "profile", "email"}
+
 	// "openid" is a required scope for OpenID Connect flows.
 	config, err := google.ConfigFromJSON(b, scopes...)
 	if err != nil {
@@ -263,13 +265,16 @@ func (f *OIDCWebFlowFlags) Flow() (*OIDCWebFlowServer, error) {
 	}
 
 	// TODO(jeremy): make this a parameter. 0 picks a free port.
-	port, err := networking.GetFreePort()
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get free port")
-	}
+	//port, err := networking.GetFreePort()
+	//if err != nil {
+	//	return nil, errors.Wrapf(err, "Failed to get free port")
+	//}
 	// We need to rewrite the RedirectURL in the config because the webflowserver gets the value
 	// from the callback URL
-	config.RedirectURL = fmt.Sprintf("http://127.0.0.1:%v%v", port, authCallbackUrl)
+
+	// Google requires 127.0.0.1 but Azure AD / Entra requires localhost.
+	// config.RedirectURL = fmt.Sprintf("http://127.0.0.1:%v%v", port, authCallbackUrl)
+	config.RedirectURL = fmt.Sprintf("http://localhost:9999%v", authCallbackUrl)
 
 	p, err := oidc.NewProvider(context.Background(), f.Issuer)
 	if err != nil {
